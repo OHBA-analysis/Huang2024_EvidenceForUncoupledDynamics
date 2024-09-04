@@ -1,11 +1,12 @@
+"""Script for training M-DyNeMo on different split halves of MEGUK-38 resting-state data."""
+
 from sys import argv
 
-if len(argv) != 3:
-    print(f"Please pass the run and half id, e.g. python {argv[0]}.py 1 0")
+if len(argv) != 2:
+    print(f"Please pass the run id e.g. python {argv[0]}.py 1")
     exit()
 
 id = int(argv[1])
-half_id = int(argv[2])
 
 from glob import glob
 
@@ -53,18 +54,19 @@ config = """
 
 tf_ops.gpu_growth()
 
-data = load_data(
-    half_id,
-    sampling_frequency=250,
-    mask_file="MNI152_T1_8mm_brain.nii.gz",
-    parcellation_file="fmri_d100_parcellation_with_PCC_reduced_2mm_ss5mm_ds8mm.nii.gz",
-    n_jobs=8,
-    use_tfrecord=True,
-    buffer_size=2000,
-    store_dir=f"tmp/notts_38_mdynemo_split_half/{half_id}/run{id:02d}",
-)
-run_pipeline(
-    config,
-    output_dir=f"results/notts_38_mdynemo_split_half/{half_id}/run{id:02d}",
-    data=data,
-)
+for half_id in [0, 1]:
+    data = load_data(
+        half_id,
+        sampling_frequency=250,
+        mask_file="MNI152_T1_8mm_brain.nii.gz",
+        parcellation_file="fmri_d100_parcellation_with_PCC_reduced_2mm_ss5mm_ds8mm.nii.gz",
+        n_jobs=8,
+        use_tfrecord=True,
+        buffer_size=2000,
+        store_dir=f"tmp/notts_38_mdynemo_split_half/{half_id}/run{id:02d}",
+    )
+    run_pipeline(
+        config,
+        output_dir=f"results/notts_38_mdynemo_split_half/{half_id}/run{id:02d}",
+        data=data,
+    )

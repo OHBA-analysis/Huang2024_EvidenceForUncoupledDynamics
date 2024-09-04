@@ -1,34 +1,38 @@
+"""
+Script for analysing and plotting results from training M-DyNeMo
+on the Wakemen-Henson dataset.
+
+This script includes the following steps:
+1. save the inferred parameters.
+2. plot the mode time courses.
+3. plot the networks.
+4. plot the mode coupling (correlation profile of the mode time courses).
+5. Perform evoked network analysis.
+6. Permutation test on the spatial map similarity between power and FC networks.
+"""
+
 import numpy as np
-import pickle
 import os
 import matplotlib.pyplot as plt
 from glob import glob
 import mne
 
 from osl_dynamics import run_pipeline
-from osl_dynamics.models import mdynemo
 from osl_dynamics.inference import tf_ops, modes
 from osl_dynamics.data import Data
-from osl_dynamics.utils.misc import load, save
-from osl_dynamics.utils import plotting
-from osl_dynamics.analysis import power, connectivity, statistics
+from osl_dynamics.utils.misc import load
+from osl_dynamics.analysis import statistics
+
+from helper_functions import (
+    save_inf_params,
+    plot_mtc,
+    plot_networks,
+    plot_mode_coupling,
+    null_spatial_map_similarity,
+    plot_spatial_map_similarity,
+)
 
 tf_ops.gpu_growth()
-
-
-def get_best_run(output_dir):
-    model_dir_list = os.listdir(output_dir)
-    history_file_list = [f"{d}/model/history.pkl" for d in model_dir_list]
-
-    best_loss = np.Inf
-    for i, f in enumerate(history_file_list):
-        if os.path.exists(f):
-            with open(f, "rb") as file:
-                history = pickle.load(file)
-            if history["loss"][-1] < best_loss:
-                best_loss = history["loss"][-1]
-                best_run = i
-    return best_run
 
 
 def load_data():
@@ -56,82 +60,6 @@ def load_data():
         }
     )
     return data
-
-
-def save_inf_params(data, output_dir):
-    inf_params_dir = f"{output_dir}/best_run/inf_params"
-    os.makedirs(inf_params_dir, exist_ok=True)
-
-    best_run = get_best_run(output_dir)
-    model = mdynemo.Model.load(f"{output_dir}/{best_run:02d}/model")
-
-    alpha, beta = model.get_mode_time_courses(data)
-    _, stds, corrs = model.get_means_stds_corrs()
-
-    save(f"{inf_params_dir}/alp.pkl", alpha)
-    save(f"{inf_params_dir}/bet.pkl", beta)
-    save(f"{inf_params_dir}/stds.npy", stds)
-    save(f"{inf_params_dir}/corrs.npy", corrs)
-
-
-def save_mtc(data, output_dir):
-    figures_dir = f"{output_dir}/best_run/figures"
-    inf_params_dir = f"{output_dir}/best_run/inf_params"
-    os.makedirs(figures_dir, exist_ok=True)
-
-    alpha = load(f"{inf_params_dir}/alp.pkl")
-    beta = load(f"{inf_params_dir}/bet.pkl")
-    stds = load(f"{inf_params_dir}/stds.npy")
-    corrs = load(f"{inf_params_dir}/corrs.npy")
-
-    norm_alpha = modes.reweight_mtc(alpha, np.square(stds), "covariance")
-    norm_beta = modes.reweight_mtc(beta, corrs, "correlation")
-    plotting.plot_alpha(
-        norm_alpha[0],
-        norm_beta[0],
-        n_samples=2000,
-        sampling_frequency=data.sampling_frequency,
-        cmap="tab10",
-        filename=f"{figures_dir}/renorm_mtc.png",
-    )
-
-
-def save_networks(data, output_dir):
-    inf_params_dir = f"{output_dir}/best_run/inf_params"
-    figures_dir = f"{output_dir}/best_run/figures"
-    os.makedirs(figures_dir, exist_ok=True)
-
-    stds = load(f"{inf_params_dir}/stds.npy")
-    corrs = load(f"{inf_params_dir}/corrs.npy")
-
-    n_modes = stds.shape[0]
-    n_corr_modes = corrs.shape[0]
-
-    power.save(
-        np.square(stds),
-        mask_file=data.mask_file,
-        parcellation_file=data.parcellation_file,
-        subtract_mean=True,
-        show_plots=False,
-        filename=f"{figures_dir}/vars.png",
-        combined=True,
-        titles=[f"mode {i+1}" for i in range(n_modes)],
-        plot_kwargs={"views": ["lateral"], "symmetric_cbar": True},
-    )
-
-    thres_corrs = connectivity.threshold(
-        corrs,
-        percentile=90,
-        absolute_value=True,
-        subtract_mean=True,
-    )
-    connectivity.save(
-        thres_corrs,
-        parcellation_file=data.parcellation_file,
-        combined=True,
-        titles=[f"mode {i+1}" for i in range(n_corr_modes)],
-        filename=f"{figures_dir}/corrs.png",
-    )
 
 
 def save_epochs(output_dir):
@@ -266,8 +194,8 @@ def group_level_analysis(output_dir):
         a_epochs = np.mean(a_epochs, axis=0)
         b_epochs = np.mean(b_epochs, axis=0)
 
-        np.save(f"{group_level_dir}/alp-constrast_{contrast}.npy", a_epochs)
-        np.save(f"{group_level_dir}/bet-constrast_{contrast}.npy", b_epochs)
+        np.save(f"{group_level_dir}/alp-contrast_{contrast}.npy", a_epochs)
+        np.save(f"{group_level_dir}/bet-contrast_{contrast}.npy", b_epochs)
         np.save(f"{group_level_dir}/alp-contrast_{contrast}_pvalues.npy", a_pvalues)
         np.save(f"{group_level_dir}/bet-contrast_{contrast}_pvalues.npy", b_pvalues)
 
@@ -361,9 +289,17 @@ data = load_data()
 
 config = """
     save_inf_params: {}
-    save_mtc: {}
-    save_networks: {}
+    plot_mtc: {}
+    plot_mode_coupling: {}
+    plot_networks: {}
     evoked_response_analysis: {}
+    null_spatial_map_similarity:
+        window_length: 50
+        step_size: 5
+        shuffle_window_length: 250
+        n_perm: 1000
+        n_jobs: 10
+    plot_spatial_map_similarity: {}
 """
 run_pipeline(
     config,
@@ -371,8 +307,11 @@ run_pipeline(
     data=data,
     extra_funcs=[
         save_inf_params,
-        save_mtc,
-        save_networks,
+        plot_mtc,
+        plot_mode_coupling,
+        plot_networks,
         evoked_response_analysis,
+        null_spatial_map_similarity,
+        plot_spatial_map_similarity,
     ],
 )

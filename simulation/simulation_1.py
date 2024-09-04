@@ -1,3 +1,8 @@
+"""
+Script to compare DyNeMo and M-DyNeMo on simulated data
+where the underlying power and FC dynamics are uncoupled.
+"""
+
 import os
 import numpy as np
 from tqdm.auto import trange
@@ -211,7 +216,7 @@ plt.title("Dice coefficients")
 fig.savefig(f"{results_dir}/dice_coefficients.png")
 
 # Plot state time courses
-ig, axes = plt.subplots(3, 2, figsize=(10, 5))
+fig, axes = plt.subplots(3, 2, figsize=(10, 5))
 plotting.plot_alpha(
     sim_stc[0],
     mdynemo_stc[0],

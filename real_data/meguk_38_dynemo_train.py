@@ -1,3 +1,5 @@
+"""Script to train DyNeMo on MEGUK-38 resting-state data."""
+
 from sys import argv
 
 if len(argv) != 2:
@@ -18,29 +20,24 @@ config = f"""
             n_jobs: 8
             use_tfrecord: True
             buffer_size: 2000
-            store_dir: tmp/notts_38_mdynemo/run{id:02d}
+            store_dir: tmp/notts_38_dynemo/run{id:02d}
         prepare:
             filter: {{low_freq: 1, high_freq: 45}}
             amplitude_envelope: {{}}
-            moving_average: {{n_window: 101}}
+            moving_average: {{n_window: 25}}
             standardize: {{}}
             pca: {{n_pca_components: 38}}
-    train_mdynemo:
+    train_dynemo:
         config_kwargs:
             n_modes: 4
             learn_means: False
-            learn_stds: True
-            learn_corrs: True
-            learning_rate: 0.001
+            learn_covariances: True
+            learning_rate: 0.005
             batch_size: 256
-            n_epochs: 80
-            n_kl_annealing_epochs: 40
-        init_kwargs:
-            n_init: 10
         save_inf_params: False
 """
 tf_ops.gpu_growth()
 run_pipeline(
     config,
-    output_dir=f"results/notts_38_mdynemo/run{id:02d}",
+    output_dir=f"results/notts_38_dynemo/run{id:02d}",
 )

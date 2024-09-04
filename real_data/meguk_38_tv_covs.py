@@ -1,4 +1,8 @@
-import os
+"""
+Script for comparing variability of reconstructed time-varying covariances
+from M-DyNeMo and DyNeMo on MEGUK-38 resting-state data.
+"""
+
 from tqdm.auto import tqdm
 import numpy as np
 
@@ -20,18 +24,26 @@ dynemo_covs = load(f"{dynemo_inf_params_dir}/covs.npy")
 
 # Reconstruct the time-varying covariances
 mdynemo_tv_covs = []
-for a, g in tqdm(zip(mdynemo_a, mdynemo_b), total=len(mdynemo_a)):
+for a, g in tqdm(
+    zip(mdynemo_a, mdynemo_b),
+    total=len(mdynemo_a),
+    desc="Reconstructing time-varying covariances",
+):
     mdynemo_tv_stds = np.sum(a[..., None, None] * mdynemo_stds[None, ...], axis=1)
     mdynemo_tv_corrs = np.sum(g[..., None, None] * mdynemo_corrs[None, ...], axis=1)
     mdynemo_tv_covs.append(mdynemo_tv_stds @ mdynemo_tv_corrs @ mdynemo_tv_stds)
 
 dynemo_tv_covs = []
-for a in tqdm(dynemo_a, total=len(dynemo_a)):
+for a in tqdm(
+    dynemo_a, total=len(dynemo_a), desc="Reconstructing time-varying covariances"
+):
     dynemo_tv_covs.append(np.sum(a[..., None, None] * dynemo_covs[None, ...], axis=1))
 
 # Compute the Riemannian distances with mean covariance of each subject
 mdynemo_rd = []
-for tv_cov in tqdm(mdynemo_tv_covs, total=len(mdynemo_tv_covs)):
+for tv_cov in tqdm(
+    mdynemo_tv_covs, total=len(mdynemo_tv_covs), desc="Computing Riemannian distances"
+):
     mean_cov = np.mean(tv_cov, axis=0)
     rd_ = []
     for cov in tv_cov:
@@ -39,7 +51,9 @@ for tv_cov in tqdm(mdynemo_tv_covs, total=len(mdynemo_tv_covs)):
     mdynemo_rd.append(np.mean(rd_))
 
 dynemo_rd = []
-for tv_cov in tqdm(dynemo_tv_covs, total=len(dynemo_tv_covs)):
+for tv_cov in tqdm(
+    dynemo_tv_covs, total=len(dynemo_tv_covs), desc="Computing Riemannian distances"
+):
     mean_cov = np.mean(tv_cov, axis=0)
     rd_ = []
     for cov in tv_cov:

@@ -1,3 +1,5 @@
+"""Script for submitting training jobs to the BMRC cluster."""
+
 import os
 
 
@@ -19,9 +21,9 @@ def write_and_submit_job_script(run, script):
 os.makedirs("outputs", exist_ok=True)
 
 for run in range(10):
-    write_and_submit_job_script(run, "notts_38_dynemo_train.py")
-    write_and_submit_job_script(run, "notts_38_mdynemo_train.py")
-    write_and_submit_job_script(run, "notts_38_split_half_train.py")
-    write_and_submit_job_script(run, "notts_52_mdynemo_train.py")
+    write_and_submit_job_script(run, "meguk_38_dynemo_train.py")
+    write_and_submit_job_script(run, "meguk_38_mdynemo_train.py")
+    write_and_submit_job_script(run, "meguk_38_split_half_train.py")
+    write_and_submit_job_script(run, "meguk_52_mdynemo_train.py")
     write_and_submit_job_script(run, "wh_dynemo_train.py")
     write_and_submit_job_script(run, "wh_mdynemo_train.py")

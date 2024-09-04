@@ -1,5 +1,15 @@
+"""
+Script for analysing and plotting results from running DyNeMo
+on the Wakeman-Henson dataset.
+
+The script includes the following steps:
+1. save the inferred parameters.
+2. plot the mode time courses.
+3. plot the networks.
+4. Perform evoked network analysis.
+"""
+
 import numpy as np
-import pickle
 import os
 import matplotlib.pyplot as plt
 from glob import glob
@@ -13,22 +23,9 @@ from osl_dynamics.utils.misc import load, save
 from osl_dynamics.utils import plotting
 from osl_dynamics.analysis import power, connectivity, statistics
 
+from helper_functions import get_best_run
+
 tf_ops.gpu_growth()
-
-
-def get_best_run(output_dir):
-    model_dir_list = os.listdir(output_dir)
-    history_file_list = [f"{d}/model/history.pkl" for d in model_dir_list]
-
-    best_loss = np.Inf
-    for i, f in enumerate(history_file_list):
-        if os.path.exists(f):
-            with open(f, "rb") as file:
-                history = pickle.load(file)
-            if history["loss"][-1] < best_loss:
-                best_loss = history["loss"][-1]
-                best_run = i
-    return best_run
 
 
 def load_data():
@@ -63,7 +60,7 @@ def save_inf_params(data, output_dir):
     os.makedirs(inf_params_dir, exist_ok=True)
 
     best_run = get_best_run(output_dir)
-    model = dynemo.Model.load(f"{output_dir}/{best_run:02d}/model")
+    model = dynemo.Model.load(f"{output_dir}/{best_run}/model")
 
     alpha = model.get_alpha(data)
     covs = model.get_covariances()
@@ -72,7 +69,7 @@ def save_inf_params(data, output_dir):
     save(f"{inf_params_dir}/covs.npy", covs)
 
 
-def save_mtc(data, output_dir):
+def plot_mtc(data, output_dir):
     figures_dir = f"{output_dir}/best_run/figures"
     inf_params_dir = f"{output_dir}/best_run/inf_params"
     os.makedirs(figures_dir, exist_ok=True)
@@ -90,7 +87,7 @@ def save_mtc(data, output_dir):
     )
 
 
-def save_networks(data, output_dir):
+def plot_networks(data, output_dir):
     inf_params_dir = f"{output_dir}/best_run/inf_params"
     figures_dir = f"{output_dir}/best_run/figures"
     os.makedirs(figures_dir, exist_ok=True)
@@ -221,7 +218,7 @@ def group_level_analysis(output_dir):
         )
         a_epochs = np.mean(a_epochs, axis=0)
 
-        np.save(f"{group_level_dir}/alp-constrast_{contrast}.npy", a_epochs)
+        np.save(f"{group_level_dir}/alp-contrast_{contrast}.npy", a_epochs)
         np.save(f"{group_level_dir}/alp-contrast_{contrast}_pvalues.npy", a_pvalues)
 
 
@@ -239,7 +236,7 @@ def evoked_response_analysis(data, output_dir):
 
     t = np.load(f"{first_level_dir}/t.npy")
 
-    fig, axes = plt.subplots(1, 3, figsize=(20, 10))
+    fig, axes = plt.subplots(1, 3, figsize=(20, 5))
     for index, name in enumerate(contrasts):
         # Load COPEs from the group-level GLM
         cope = np.load(f"{group_level_dir}/alp-contrast_{index}.npy")
@@ -262,7 +259,7 @@ def evoked_response_analysis(data, output_dir):
                 dt = t[1] - t[0]
                 y = cope.max() * (1.3 + 0.1 * mode)
                 for st in sig_t:
-                    axes[0, index].plot(
+                    axes[index].plot(
                         (st - dt, st + dt), (y, y), color=cmap(mode), linewidth=4
                     )
 
@@ -289,8 +286,8 @@ data = load_data()
 
 config = """
     save_inf_params: {}
-    save_mtc: {}
-    save_networks: {}
+    plot_mtc: {}
+    plot_networks: {}
     evoked_response_analysis: {}
 """
 run_pipeline(
@@ -299,8 +296,8 @@ run_pipeline(
     data=data,
     extra_funcs=[
         save_inf_params,
-        save_mtc,
-        save_networks,
+        plot_mtc,
+        plot_networks,
         evoked_response_analysis,
     ],
 )

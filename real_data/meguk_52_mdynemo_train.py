@@ -1,3 +1,5 @@
+"""Script to train the M-DyNeMo model on the MEGUK-52 dataset."""
+
 from sys import argv
 
 if len(argv) != 2:

@@ -1,3 +1,8 @@
+"""
+Script for running sliding window approach on MEGUK-38 resting-state data.
+Also includes KMeans clustering and plotting the results.
+"""
+
 import os
 
 import numpy as np
@@ -10,8 +15,12 @@ from osl_dynamics.analysis import connectivity, power
 from osl_dynamics import array_ops
 from osl_dynamics.utils import plotting, set_random_seed
 
+import helper_functions as ops
+
+
 set_random_seed(42)
 figures_dir = "results/notts_38_sw"
+os.makedirs(figures_dir, exist_ok=True)
 
 # Load and prepare data
 data = Data(
@@ -75,15 +84,27 @@ fig, ax = plotting.plot_alpha(
     sampling_frequency=250,
 )
 ax[0].set_title("State time courses with KMeans clustering", fontsize=22)
-ax[0].set_ylabel("TV Variance", fontsize=18)
-ax[1].set_ylabel("TV Correlation", fontsize=18)
+ax[0].set_ylabel("TV power", fontsize=18)
+ax[1].set_ylabel("TV FC", fontsize=18)
 ax[1].set_xlabel("Time (s)", fontsize=18)
-fig.savefig(f"{figures_dir}/sw_stc.png", dpi=300)
+fig.savefig(f"{figures_dir}/sw_stc.png")
 
 # Power maps
 std_centroids = std_kmeans.cluster_centers_
 std_centroids = np.array([np.diag(c) for c in std_centroids])
 std_centroids = data.pca_components @ std_centroids @ data.pca_components.T
+
+# FC maps
+corr_centroids = corr_kmeans.cluster_centers_.reshape(
+    4, data.n_channels, data.n_channels
+)
+corr_centroids = array_ops.cov2corr(corr_centroids)
+corr_centroids = data.pca_components @ corr_centroids @ data.pca_components.T
+
+# Sort the modes
+order = ops.get_mode_orders(std_centroids, corr_centroids)
+corr_centroids = corr_centroids[order]
+
 power.save(
     std_centroids,
     mask_file=data.mask_file,
@@ -93,15 +114,9 @@ power.save(
     filename=f"{figures_dir}/sw_var.png",
     combined=True,
     plot_kwargs={"views": ["lateral"], "symmetric_cbar": True, "vmax": 0.25},
-    titles=["State 1", "State 2", "State 3", "State 4"],
+    titles=[f"Power state {i+1}" for i in range(4)],
 )
 
-# FC maps
-corr_centroids = corr_kmeans.cluster_centers_.reshape(
-    4, data.n_channels, data.n_channels
-)
-corr_centroids = array_ops.cov2corr(corr_centroids)
-corr_centroids = data.pca_components @ corr_centroids @ data.pca_components.T
 thres_corr_centroids = connectivity.threshold(
     corr_centroids, 90, absolute_value=True, subtract_mean=True
 )
@@ -110,7 +125,7 @@ connectivity.save(
     parcellation_file=data.parcellation_file,
     filename=f"{figures_dir}/sw_corr.png",
     combined=True,
-    titles=["State 1", "State 2", "State 3", "State 4"],
+    titles=[f"FC state {i+1}" for i in range(4)],
 )
 
 # Correlation between state time courses
@@ -135,8 +150,8 @@ sns.heatmap(
     ax=ax,
 )
 ax.set_title("Correlation between state time courses", fontsize=16)
-ax.set_xlabel("TV corr state", fontsize=16)
-ax.set_ylabel("TV std state", fontsize=16)
+ax.set_xlabel("FC states", fontsize=16)
+ax.set_ylabel("Power states", fontsize=16)
 ax.set_xticklabels(range(1, 5), fontsize=14)
 ax.set_yticklabels(range(1, 5), fontsize=14)
 fig.savefig(f"{figures_dir}/sw_stc_corr.png", dpi=300)

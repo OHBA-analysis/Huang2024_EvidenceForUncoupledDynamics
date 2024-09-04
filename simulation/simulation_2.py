@@ -1,3 +1,8 @@
+"""
+Script to compare DyNeMo and M-DyNeMo on simulated data
+where the underlying power and FC dynamics are coupled.
+"""
+
 import os
 import numpy as np
 from tqdm.auto import trange
@@ -17,7 +22,7 @@ set_random_seed(0)
 # Directory to hold results
 results_dir = "results/simulation_2"
 os.makedirs(results_dir, exist_ok=True)
-train_models = True
+train_models = False
 
 # simulate data
 sim = simulation.HMM_MVN(
@@ -189,21 +194,23 @@ mdynemo_stds = mdynemo_stds[mdynemo_order_alpha]
 mdynemo_corrs = mdynemo_corrs[mdynemo_order_gamma]
 
 # plot state time courses
-fig, ax = plotting.plot_alpha(
+fig, axes = plt.subplots(4, 1, figsize=(12, 8))
+plotting.plot_alpha(
     sim_stc,
     dynemo_stc,
     mdynemo_stc[0],
     mdynemo_stc[1],
     n_samples=500,
     cmap="tab10",
+    axes=axes,
 )
-ax[0].set_title("Mode time courses", fontsize=22)
-ax[0].set_ylabel("Simulated", fontsize=16)
-ax[1].set_ylabel("DyNeMo", fontsize=16)
-ax[2].set_ylabel("M-DyNeMo " + r"$\alpha$", fontsize=16)
-ax[3].set_ylabel("M-DyNeMo " + r"$\beta$", fontsize=16)
-ax[3].set_xlabel("Samples", fontsize=16)
-fig.savefig(f"{results_dir}/mode_time_courses.png", dpi=300)
+axes[0].set_title("Mode time courses", fontsize=22)
+axes[0].set_ylabel("Simulated", fontsize=16)
+axes[1].set_ylabel("DyNeMo", fontsize=16)
+axes[2].set_ylabel("M-DyNeMo " + r"$\alpha$", fontsize=16)
+axes[3].set_ylabel("M-DyNeMo " + r"$\beta$", fontsize=16)
+axes[3].set_xlabel("Samples", fontsize=16)
+fig.savefig(f"{results_dir}/mode_time_courses.png")
 
 # Riemannian distance from the ground truth
 mdynemo_dynamic_covs_rd = np.zeros((5000,))

@@ -1,3 +1,5 @@
+"""Script for training DyNeMo on the Wakeman-Henson dataset."""
+
 from sys import argv
 
 if len(argv) != 2:
