@@ -1,0 +1,1 @@
+This directory contains scripts for training models on simulation data and analysing results from trained models. Details of each script can be found in the docstrings at the beginning.

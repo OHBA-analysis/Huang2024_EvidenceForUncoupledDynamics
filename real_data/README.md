@@ -1,0 +1,1 @@
+This directory contains scripts for training models on real data and analysing results from trained models. The filenames follow the general convention of \<dataset>\_\<model>\_(\<train_or_analyse>).py. Details of each script can be found in the docstrings at the beginning.
